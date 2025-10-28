@@ -45,7 +45,7 @@ void simplify_fraction(fraction *f)//约分算法
     f->denominator /= greatest_common_divisor;
     f->numerator /= greatest_common_divisor;
 }
-fraction print_fraction(fraction a)//标准化输出
+void print_fraction(fraction a)//标准化输出
 {   
     if(a.denominator == 0)
     {
@@ -118,7 +118,7 @@ typedef struct //定义矩阵
     int cols;//列数
     fraction** data;//二维数组指针
 } matrix;
-matrix create_matrix(int rows,int cols)//创建矩阵
+matrix create_matrix(int rows,int cols)//创建矩阵并且初始化
 {
     matrix mat;
     mat.rows = rows;
@@ -341,6 +341,8 @@ void add_scaled_row(matrix* mat,int row1,int row2,fraction f)// 行加法：row1
         mat->data[row1][j] = add_fraction(mat->data[row1][j], product);
     }
 }
+
+
 // matrix simplify_matrix(matrix* mat)//化为最简阶梯矩阵(第一版)
 // {
 //     //创建副本
@@ -449,57 +451,373 @@ matrix simplify_matrix(matrix* mat)//化为最简阶梯矩阵
     
     return result;
 }
+//在user_interaction()中已经强制检查是否能够进行运算
+matrix add_matrix(matrix* mat1,matrix* mat2)//矩阵加法
+{
+    matrix result;
+    result = create_matrix(mat1->rows,mat1->cols);//创建矩阵并且初始化
+    if(mat1->cols == mat2->cols && mat1->rows == mat2->rows){//判断矩阵大小是否相同
+        for(int i = 0;i < mat1->rows;i++)
+        {
+            for(int j = 0;j < mat1->cols;j++)
+            {
+                result.data[i][j] = add_fraction(mat1->data[i][j],mat2->data[i][j]);
+            }
+        }
+        return result;
+    }else{
+        printf("矩阵大小不合法!invalid input!");
+        return result;
+    }
+}
+matrix subtract_matrix(matrix* mat1,matrix* mat2)//矩阵减法
+{
+    matrix result;
+    result = create_matrix(mat1->rows,mat1->cols);//创建矩阵并且初始化
+    if(mat1->cols == mat2->cols && mat1->rows == mat2->rows){//判断矩阵大小是否相同
+        for(int i = 0;i < mat1->rows;i++)
+        {
+            for(int j = 0;j < mat1->cols;j++)
+            {
+                result.data[i][j] = subtract_fraction(mat1->data[i][j],mat2->data[i][j]);
+            }
+        }
+        return result;
+    }else{
+        printf("矩阵大小不合法!invalid input!");
+        return result;
+    }
+}
+matrix multiple_matrix(matrix* mat1,matrix* mat2)//矩阵乘法
+{
+    matrix result;
+    //m*n 矩阵与 n*k 矩阵才能相乘 结果矩阵大小为 m*k
+    //即检查mat1.cols == mat2.rows
+    result = create_matrix(mat1->rows,mat2->cols);//创建矩阵并且初始化
+    if(mat1->cols == mat2->rows){//判断能否相乘
+        for(int i = 0;i < mat1->rows;i++)//遍历mat1.rows即mat1的行数
+        {
+            for(int j = 0;j < mat2->cols;j++)//mat2的列数
+            {
+                for(int k = 0;k < mat1->cols;k++)
+                {
+                    result.data[i][j] = add_fraction(result.data[i][j],multiple_fraction(mat1->data[i][k],mat2->data[k][j]));
+                }
+            }
+        }
+        return result;
+    }else{
+        printf("矩阵大小不合法!invalid input!");
+        return result;
+    }
+}
+matrix transpose_matrix(matrix* mat1)//矩阵的转置
+{
+    matrix result = create_matrix(mat1->cols,mat1->rows);
+    for(int i = 0;i < mat1->rows;i++)
+    {
+        for(int j = 0;j < mat1->cols;j++)
+        {
+            result.data[j][i] = mat1->data[i][j];
+        }
+    }
+    return result;
+}
+fraction determinant_matrix(matrix* mat1)//求方阵的>>>>值<<<<!!!!
+{
+    matrix result;
+    result = create_matrix(mat1->rows,mat1->cols);
+
+    if(mat1->rows == mat1->cols)//只有方阵才能求值
+    {
+        //储存副本
+        for(int i = 0;i < mat1->rows;i++)
+        {
+            for(int j = 0;j < mat1->cols;j++)
+            {
+                result.data[i][j] = mat1->data[i][j];
+            }
+        }
+
+        //化为阶梯型矩阵
+
+        int lead = 0; // 主元列
+        
+        // 前向消元：化为行阶梯形
+        for(int r = 0; r < result.rows; r++)
+        {
+            if (lead >= result.cols) break;
+            
+            // 在当前列寻找主元
+            int i = r;
+            while (i < result.rows && is_zero_fraction(result.data[i][lead])) {
+                i++;
+            }
+            
+            if (i >= result.rows) {
+                // 当前列找不到主元，移动到下一列
+                lead++;
+                r--; // 保持当前行不变
+                continue;
+            }
+            
+            // 交换主元行到当前行
+            if (i != r) {
+                swap_rows(&result, r, i);
+            }
+            
+            // 消去当前列下方元素
+            fraction pivot = result.data[r][lead];
+            for (int j = r + 1; j < result.rows; j++) {
+                if (!is_zero_fraction(result.data[j][lead])) {
+                    fraction factor = divide_fraction(result.data[j][lead], pivot);
+                    factor = multiple_fraction(factor, create_fraction(-1, 1)); // 取负号
+                    add_scaled_row(&result, j, r, factor);
+                }
+            }
+            
+            lead++;
+        }
+        
+        //累乘,行阶梯方阵的值是对角线所有值的乘积
+        fraction sum = create_fraction(1,1);
+        for(int i = 0;i < result.rows;i++)
+        {
+            sum = multiple_fraction(sum,result.data[i][i]);
+        }
+        return sum;
+    }else{
+        printf("矩阵大小不合法!\n");
+        return create_fraction(1,1);
+    }
+}
+matrix solutions_of_equations(matrix* mat1)//求解n元线性方程组
+{
+    matrix result = create_matrix(mat1->rows,mat1->cols);
+    if(mat1->rows == mat1->cols - 1){
+        //克拉默法则:对于一个n*n的线性方程组,它的解可以表示为det(Ai)/det(A),其中Ai表示第i列被B替换后的矩阵;
+        //高斯消元法:化为最简行阶梯矩阵即可求解
+        //实际计算不会使用克拉默法则;
+        result = simplify_matrix(&mat1);
+        return result;
+    }else{
+        printf("输入的增广矩阵大小不合法!\n");
+        return result;
+    }
+}
+matrix inverse_matrix(matrix* mat1)//矩阵的逆
+{
+    matrix temp,result;
+    temp = create_matrix(mat1->rows,mat1->cols*2);
+    result = create_matrix(mat1->rows,mat1->cols);
+    for(int i = 0;i < mat1->rows;i++)//分段赋值,(A:I)前半段赋值mat1
+    {
+        for(int j = 0;j < mat1->cols;j++)
+        {
+            temp.data[i][j] = mat1->data[i][j];
+        }
+    }
+    for(int i = 0;i < mat1->rows;i++)//后半段赋值I
+    {
+        temp.data[i][i+mat1->rows] = create_fraction(1,1);
+    }
+    
+    return result;
+}
 void user_interaction()//交互界面
 {
+
     printf("----------矩阵计算化简程序v0.1----------\n");
-    int flag = 0;
+    int flag1 = 0,flag2 = 0;
+    matrix mat1,mat2;
     while(1)
     {   
-        printf("请输入数字进入对应操作:\n1.创建矩阵\n2.查看当前矩阵\n3.输出化简结果\n4.退出程序\n");
+        printf("请输入数字进入对应操作:\n1.创建矩阵1\n2.创建矩阵2\n3.查看矩阵1的值\n4.查看矩阵2的值\n5.计算矩阵加法(覆盖矩阵1的值)\n6.计算矩阵减法(覆盖矩阵1的值)\n7.计算矩阵乘法(覆盖矩阵1的值)\n8.输出矩阵1的转置矩阵(覆盖矩阵1的值)\n9.输出矩阵1的最简行阶梯矩阵\n10.输出矩阵1的逆矩阵(覆盖矩阵1的值)\n11.求矩阵1的值(方阵)\n12.求解线性方程组(请输入增广矩阵)\n0.退出程序(请输入0)\n");
         int a = 0;
-        matrix mat;
         scanf("%d",&a);
-        if(a == 1){
-            flag = 1;
+        if(a == 1){//创建矩阵1
+            flag1 = 1;
             int m=0,n=0;
             //输入大小
-            printf("请输入矩阵的大小:(格式为m*n)\n");
+            printf("请输入矩阵1的大小:(格式为m*n)\n");
             scanf("%d*%d",&m,&n);
             getchar();
             //创建矩阵
-            mat = create_matrix(m,n);
-            input_matrix(&mat);
+            mat1 = create_matrix(m,n);
+            input_matrix(&mat1);
             printf("\n");
-        }else if(a == 2){
-            if(flag == 0){
+        }else if(a == 2){//创建矩阵2
+            flag2 = 1;
+            int m=0,n=0;
+            //输入大小
+            printf("请输入矩阵2的大小:(格式为m*n)\n");
+            scanf("%d*%d",&m,&n);
+            getchar();
+            //创建矩阵
+            mat2 = create_matrix(m,n);
+            input_matrix(&mat2);
+            printf("\n");
+        }else if(a == 3){//输出矩阵1
+            if(flag1 == 0){
                 printf("无效!请先创建矩阵\n\n");
             }else{
                 //输出矩阵
-                printf("输入的矩阵:\n");
-                print_matrix(&mat);
+                printf("输入的矩阵1:\n");
+                print_matrix(&mat1);
                 printf("\n");
             }
-        }else if(a == 3){
-            if(flag == 0){
+        }else if(a == 4){//输出矩阵2
+            if(flag2 == 0){
                 printf("无效!请先创建矩阵\n\n");
+            }else{
+                //输出矩阵
+                printf("输入的矩阵2:\n");
+                print_matrix(&mat2);
+                printf("\n");
+            }
+        }else if(a == 5){//计算矩阵加法并覆写结果到矩阵1
+            if(flag1 == 0 || flag2 == 0)
+            {
+                printf("请先创建矩阵!\n\n");
+            }else if(mat1.cols == mat2.cols && mat1.rows == mat2.rows){
+                matrix result;
+                result = create_matrix(mat1.rows,mat1.cols);
+                result = add_matrix(&mat1,&mat2);
+                printf("\n");
+                print_matrix(&result);
+                printf("\n");
+                //赋值并且释放内存...
+                for(int i = 0;i < mat1.rows;i++)
+                {
+                    for(int j = 0;j < mat1.cols;j++)
+                    {
+                        mat1.data[i][j] = result.data[i][j];
+                    }
+                }
+                free_matrix(&result);
+            }else{
+                printf("矩阵大小不合法!\n");
+            }
+        }else if(a == 6){//计算矩阵减法并覆写结果到矩阵1
+            if(flag1 == 0 || flag2 == 0)
+            {
+                printf("请先创建矩阵!\n\n");
+            }else if(mat1.cols == mat2.cols && mat1.rows == mat2.rows){
+                matrix result;
+                result = create_matrix(mat1.rows,mat1.cols);
+                result = subtract_matrix(&mat1,&mat2);
+                printf("\n");
+                print_matrix(&result);
+                printf("\n");
+                //赋值并且释放内存...
+                for(int i = 0;i < mat1.rows;i++)
+                {
+                    for(int j = 0;j < mat1.cols;j++)
+                    {
+                        mat1.data[i][j] = result.data[i][j];
+                    }
+                }
+                free_matrix(&result);
+            }else{
+                printf("矩阵大小不合法!\n");
+            }
+        }else if(a == 7){//计算矩阵乘法并覆写结果到矩阵1
+            if(flag1 == 0 || flag2 == 0)
+            {
+                printf("请先创建矩阵!\n\n");
+            }else if(mat1.cols == mat2.rows){
+                matrix result;
+                result = create_matrix(mat1.rows,mat2.cols);
+                result = multiple_matrix(&mat1,&mat2);
+                printf("\n");
+                print_matrix(&result);
+                printf("\n");
+                //赋值并且释放内存...
+                mat1.cols = mat2.cols;
+                for(int i = 0;i < mat1.rows;i++)
+                {
+                    for(int j = 0;j < mat2.cols;j++)
+                    {
+                        mat1.data[i][j] = result.data[i][j];
+                    }
+                }
+                free_matrix(&result);
+            }else{
+                printf("矩阵大小不合法!\n");
+            }
+        }else if(a == 8){//输出矩阵1的转置矩阵并覆写结果到矩阵1
+            if(flag1 == 0){
+                printf("请先创建矩阵!\n\n");
+            }else{
+                matrix result;
+                result = create_matrix(mat1.cols,mat1.rows);
+                result = transpose_matrix(&mat1);
+                mat1 = create_matrix(result.rows,result.cols);
+                for(int i = 0;i < mat1.rows;i++)
+                {
+                    for(int j = 0;j < mat1.cols;j++)
+                    {
+                        mat1.data[i][j] = result.data[i][j];
+                    }
+                }
+                free_matrix(&result);
+                printf("矩阵1的转置:\n");
+                print_matrix(&mat1);
+                printf("\n");
+            }
+        }else if(a == 9){//将矩阵1化为最简阶梯行列式
+            if(flag1 == 0){
+                printf("请先创建矩阵!\n\n");
             }else{
                 //输出化简结果
                 printf("化简结果:\n");
-                matrix result = simplify_matrix(&mat);
+                matrix result = simplify_matrix(&mat1);
                 print_matrix(&result);
                 printf("\n");
             }
-        }else if(a == 4){
+        }else if(a == 10){//求矩阵1的逆矩阵并覆写结果到矩阵1
+            if(flag1 == 0){
+                printf("请先创建矩阵!\n\n");
+            }else{
+                matrix result = inverse_matrix(&mat1);
+            }
+        }else if(a == 11){
+            if(flag1 == 0)
+            {
+                printf("请先创建矩阵!\n\n");
+            }else if(mat1.rows == mat1.cols){
+                fraction sum = create_fraction(1,1);
+                sum = determinant_matrix(&mat1);
+                printf("矩阵1的值为:");
+                print_fraction(sum);
+                printf("\n");
+            }else{
+                printf("矩阵大小错误!只有方阵才能求值!\n\n");
+            }
+        }else if(a == 12){
+            if(flag1 == 0)
+            {
+                printf("请先创建矩阵!\n\n");
+            }else if(mat1.rows == mat1.cols){
+
+            }else{
+                printf("矩阵大小错误!\n\n");
+            }
+        }else if(a == 0){//退出程序并释放内存
             printf("退出程序!\n");
-            if(a == 1)
-                free_matrix(&mat);
+            if(flag1 == 1)
+                free_matrix(&mat1);
+            if(flag2 ==1)
+                free_matrix(&mat2);
             break;
-        }else{
+        }else{//处理不合法的输入
             printf("无效的输入!请重试\n");
         }
     }
     
 }
+
+
 int main(){
     // fraction f1,f2;
     // f1.denominator=2;
