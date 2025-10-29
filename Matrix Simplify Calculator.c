@@ -598,7 +598,7 @@ matrix solutions_of_equations(matrix* mat1)//求解n元线性方程组
         //克拉默法则:对于一个n*n的线性方程组,它的解可以表示为det(Ai)/det(A),其中Ai表示第i列被B替换后的矩阵;
         //高斯消元法:化为最简行阶梯矩阵即可求解
         //实际计算不会使用克拉默法则;
-        result = simplify_matrix(&mat1);
+        //result = simplify_matrix(mat1);
         return result;
     }else{
         printf("输入的增广矩阵大小不合法!\n");
