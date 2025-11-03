@@ -598,7 +598,7 @@ matrix solutions_of_equations(matrix* mat1)//求解n元线性方程组
         //克拉默法则:对于一个n*n的线性方程组,它的解可以表示为det(Ai)/det(A),其中Ai表示第i列被B替换后的矩阵;
         //高斯消元法:化为最简行阶梯矩阵即可求解
         //实际计算不会使用克拉默法则;
-        //result = simplify_matrix(mat1);
+        result = simplify_matrix(mat1);
         return result;
     }else{
         printf("输入的增广矩阵大小不合法!\n");
@@ -621,8 +621,26 @@ matrix inverse_matrix(matrix* mat1)//矩阵的逆
     {
         temp.data[i][i+mat1->rows] = create_fraction(1,1);
     }
-    
-    return result;
+    fraction det = determinant_matrix(mat1);
+    if(!is_zero_fraction(det))//只有行列式不为0才有逆矩阵
+    {
+        
+        printf("矩阵的逆矩阵为:\n");
+        temp = simplify_matrix(&temp);
+        for(int i = 0;i < mat1->rows;i++)//提取逆矩阵
+        {
+            for(int j = 0;j < mat1->cols;j++)
+            {
+                result.data[i][j] = temp.data[i][j+mat1->cols];//后半段即为逆矩阵
+            }
+        }
+        print_matrix(&result);
+        printf("\n");
+        return result;
+    }else{
+        printf("该矩阵无逆矩阵!\n");
+        return temp;
+    }
 }
 void user_interaction()//交互界面
 {
@@ -775,13 +793,15 @@ void user_interaction()//交互界面
                 print_matrix(&result);
                 printf("\n");
             }
-        }else if(a == 10){//求矩阵1的逆矩阵并覆写结果到矩阵1
+        }else if(a == 10){//求矩阵1的逆矩阵并覆写结果到矩阵1(方阵)
             if(flag1 == 0){
                 printf("请先创建矩阵!\n\n");
-            }else{
+            }else if(mat1.rows == mat1.cols){
                 matrix result = inverse_matrix(&mat1);
+            }else{
+                printf("矩阵大小错误!只有方阵才能求逆矩阵!\n\n");
             }
-        }else if(a == 11){
+        }else if(a == 11){//求矩阵1的值
             if(flag1 == 0)
             {
                 printf("请先创建矩阵!\n\n");
@@ -794,12 +814,23 @@ void user_interaction()//交互界面
             }else{
                 printf("矩阵大小错误!只有方阵才能求值!\n\n");
             }
-        }else if(a == 12){
+        }else if(a == 12){//求解线性方程组
             if(flag1 == 0)
             {
                 printf("请先创建矩阵!\n\n");
-            }else if(mat1.rows == mat1.cols){
-
+            }else if(mat1.rows == mat1.cols - 1){
+                matrix result;
+                result = create_matrix(mat1.rows,mat1.cols);
+                result = solutions_of_equations(&mat1);
+                printf("线性方程组的解为:\n");
+                //print_matrix(&result);
+                for(int i = 0;i < result.rows;i++)
+                {
+                    printf("x%d = ",i+1);
+                    print_fraction(result.data[i][result.cols - 1]);
+                    printf("\n");
+                }
+                printf("\n");
             }else{
                 printf("矩阵大小错误!\n\n");
             }
